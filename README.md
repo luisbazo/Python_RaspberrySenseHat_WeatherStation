@@ -12,17 +12,17 @@ The project is composed by 3 python scripts
   Usage: homeWeatherStation.py [options]
 
   Options:
-    -h, --help            show this help message and exit
-    -c CITY,COUNTRY_CODE, --cities=CITY,COUNTRY_CODE
+
+          -h, --help  show this help message and exit
+          -c CITY,COUNTRY_CODE, --cities=CITY,COUNTRY_CODE
                           Cities to get weather from: Example: London,uk
-    -o OFFSET, --offset=OFFSET
-                          how fast in seconds weather has to be retreived
-    -a API, --api=API     api key to get access to OpenWeather
-    -s, --saveData        Whether to store data on local mongoDB or not
-    -w, --watsoniot       Whether to send data to Watson IoT platform or not
-    -l org sense_type sense_id token, --watsoniotoptions=org sense_type sense_id token
-                          Watson IoT Connection Options: org sense_type sense_id
-                          token
+          -o OFFSET, --offset=OFFSET
+                          how fast in seconds weather has to be retrieved
+          -a API, --api=API     api key to get access to OpenWeather
+          -s, --saveData        Whether to store data on local mongoDB or not
+          -w, --watsoniot       Whether to send data to Watson IoT platform or not
+          -l org sense_type sense_id token, --watsoniotoptions=org sense_type sense_id token
+                                Watson IoT Connection Options: org sense_type sense_id token
 
   Considering, it is executed
 

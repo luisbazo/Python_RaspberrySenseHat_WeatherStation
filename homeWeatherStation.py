@@ -89,7 +89,7 @@ def getLocalCity():
 #MAIN
 parser = OptionParser()
 parser.add_option("-c", "--cities", dest="cities",help="Cities to get weather from: Example: London,uk", metavar="CITY,COUNTRY_CODE")
-parser.add_option("-o", "--offset", dest="offset", help="how fast in seconds weather has to be retreived")
+parser.add_option("-o", "--offset", dest="offset", help="how fast in seconds weather has to be retrieved")
 parser.add_option("-a", "--api", dest="api",help="api key to get access to openweather")
 parser.add_option("-s", "--saveData",action="store_true",dest="saveData",default=False, help="Whether to store data on mongoDB or not")
 parser.add_option("-w","--watsoniot",action="store_true",dest="sendToWatsonIoT",default=False, help="Whether to send data to WatsonIoT or not")
