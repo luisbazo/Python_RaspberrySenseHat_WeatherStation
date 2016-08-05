@@ -9,6 +9,9 @@ import sys,getopt
 import threading
 import time
 import urllib2
+import ibmiotf.gateway
+import ibmiotf.device
+from optparse import OptionParser
 
 red = (255, 0, 0)
 green = (0, 255,0)
@@ -26,20 +29,22 @@ def getWeatherDataForCity(city,offset,lockscreen,isLocal,display):
 
 		#Add city to JSON weather
 		jsonweather = w.to_JSON()
-		#print jsonweather
 		jsonloads = json.loads(jsonweather)
 		jsonloads['city']=city
 
 		if(isLocal):
-			local_temp = sense.get_temperature();
-			local_temp = celciusToKelvin(local_temp)
+			local_temp = celciusToKelvin(sense.get_temperature())
 			jsonloads['city']='Home'
 			jsonloads['temperature']['temp']=local_temp
 
 		if(display):
+			#Just let one process adquire dispaly at a time
 			lockscreen.acquire()
 			displayCityWeatherOnSenseHatDisplay(jsonloads)
 			lockscreen.release()
+			#############################################
+		if(sendToWatsonIoT):
+			deviceCli.publishEvent("event", "json", json.dumps(jsonloads), qos=1 )
 		if(saveData):
 			client.test.weather.insert_one(jsonloads)
 		time.sleep(offset)
@@ -57,9 +62,8 @@ def displayCityWeatherOnSenseHatDisplay(jsonloads):
 	sense.clear()
 	for i in range(1):
 		sense.show_message(str(jsonloads['city']), 0.05 , colour, black)
-		sense.show_message(str(jsonloads['status']), 0.05, colour, black)
+		sense.show_message(str(jsonloads['detailed_status']), 0.05, colour, black)
 		sense.show_message(str(tcelsius), 0.08 , colour, black)
-
 
 #Utilities
 def celciusToKelvin(t):
@@ -82,41 +86,37 @@ def getLocalCity():
 	loc = location_state + "," + location_countrycode
 	return str(loc)
 
-try:
-	opts, args = getopt.getopt(sys.argv[1:],"hc:o:a:s:",["cities=,times=,offset=,api=,saveData="])
-except getopt.GetoptError:
-	print 'homeWeatherStation.py -c city1|city2 -o 5 -a xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -s y'
-	print 'Example: homeWeatherStation.py -c "London,uk|Madrid,sp" -t 100 -o 5 -a xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -s y'
-	sys.exit(2)
-for opt, arg in opts:
-	if opt == '-h':
-		print 'homeWeatherStation.py -c city1|city2 -o 5 -a xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -s y'
-		print 'Example: homeWeatherStation.py -c "London,uk|Madrid,sp" -t 100 -o 5 -a xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -s y'
-		sys.exit()
-	elif opt in ("-c", "--cities"):
-		cities = arg
-	elif opt in ("-o", "--offset"):
-		offset = int(arg)
-	elif opt in ("-a", "--api"):
-		api = arg
-	elif opt in ("-s", "--saveData"):
-		saveData = arg
-		if(saveData == 'y'):
-			saveData = True
-		else:
-			saveData = False
+#MAIN
+parser = OptionParser()
+parser.add_option("-c", "--cities", dest="cities",help="Cities to get weather from: Example: London,uk", metavar="CITY,COUNTRY_CODE")
+parser.add_option("-o", "--offset", dest="offset", help="how fast in seconds weather has to be retreived")
+parser.add_option("-a", "--api", dest="api",help="api key to get access to openweather")
+parser.add_option("-s", "--saveData",action="store_true",dest="saveData",default=False, help="Whether to store data on mongoDB or not")
+parser.add_option("-w","--watsoniot",action="store_true",dest="sendToWatsonIoT",default=False, help="Whether to send data to WatsonIoT or not")
+parser.add_option("-l","--watsoniotoptions",type="string", nargs=4, dest="woptions",help="Watson IoT Connection Options: org sense_type sense_id token",metavar="org sense_type sense_id token")
 
-if (offset <= 0):
-	print 'offset should be greater than 0'
-	print 'homeWeatherStation.py -c city1|city2 -o 5 -a xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -s y'
-	print 'Example: homeWeatherStation.py -c "London,uk|Madrid,sp" -o 5 -a xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -s y'
-	sys.exit()
+(opts, args) = parser.parse_args()
+cities = opts.cities
+offset=float(opts.offset)
+api=opts.api
+saveData=opts.saveData
+sendToWatsonIoT=opts.sendToWatsonIoT
+if(sendToWatsonIoT): (org,type_sensor,id_sensor,auth_token)= opts.woptions
 
 owm = pyowm.OWM(api)
-client = MongoClient()
+if(saveData):
+	client = MongoClient()
 sense = SenseHat()
 sense.set_rotation(90)
 loc = getLocalCity()
+if(sendToWatsonIoT):
+	try:
+		deviceOptions = {"org": org, "type": type_sensor, "id": id_sensor, "auth-method": "token", "auth-token": auth_token}
+    		deviceCli = ibmiotf.device.Client(deviceOptions)
+    		deviceCli.connect()
+	except ibmiotf.ConnectionException  as e:
+    		print(e)
+
 
 array_cities = cities.split("|")
 lockscreen = threading.Semaphore(1)
@@ -134,6 +134,6 @@ t.start()
 
 #Thread to get other cities provided in the parameters
 for city in array_cities:
-    t = threading.Thread(target=getWeatherDataForCity, args=(city,offset,lockscreen,False,False,))
+    t = threading.Thread(target=getWeatherDataForCity, args=(city,offset,lockscreen,False,True,))
     threads.append(t)
     t.start()
